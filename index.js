@@ -10,7 +10,23 @@ const bcrypt = require("bcrypt");
 const { authenticateUser, isAdmin } = require("./middleware/authmiddleware");
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = ["https://dev-source-final-frontend-e5e7.vercel.app"];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200, // For legacy browsers
+};
+
+app.use(cors(corsOptions));
 
 //cloudinary config
 cloudinary.config({
