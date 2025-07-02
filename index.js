@@ -6,6 +6,7 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const { authenticateUser, isAdmin } = require("./middleware/authmiddleware");
 const app = express();
 app.use(express.json());
@@ -113,7 +114,9 @@ app.post("/register/user", async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: "User already exists" });
 
-    const user = new User({ name, email, password, profilePicture, role: "user" });
+    const hashedPassword = await bcrypt.hash(password, 10); // 👈 Hash password
+
+    const user = new User({ name, email, password: hashedPassword, profilePicture, role: "user" });
     await user.save();
     res.status(201).json({ message: "User registered successfully", user });
   } catch (err) {
@@ -141,15 +144,22 @@ app.post("/login/user", async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email, role: "user" });
-    if (!user || user.password !== password) {
+    if (!user) {
       return res.status(400).json({ message: "Invalid user credentials" });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password); // 👈 Compare hashed
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid user credentials" });
+    }
+
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
     res.status(200).json({ message: "User login successful", token, user });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
 
 // 🔑 Login - Admin
 app.post("/login/admin", async (req, res) => {
